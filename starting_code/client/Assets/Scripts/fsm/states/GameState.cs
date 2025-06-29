@@ -21,11 +21,17 @@ public class GameState : ApplicationStateWithView<GameView>
     // Our local username to identify which player we are
     private string myName;
     
-    // A fixed player ID for this client
-    private int myFixedPlayerId = 0;
+    // A fixed player ID for this client (1 or 2, relative to THIS game)
+    private int myPlayerId = 0;
     
-    // Last move played by this client
-    private int myLastMove = -1;
+    // Track if the game has ended
+    private bool gameHasEnded = false;
+    
+    // Store the final board data
+    private TicTacToeBoardData finalBoardData = null;
+    
+    // Track if we've received player names
+    private bool receivedPlayerNames = false;
 
     public override void EnterState()
     {
@@ -42,45 +48,46 @@ public class GameState : ApplicationStateWithView<GameView>
         player1MoveCount = 0;
         player2MoveCount = 0;
         currentPlayerId = 1; // Player 1 starts by default
-        myFixedPlayerId = 0; // Reset player ID
-        myLastMove = -1;
+        myPlayerId = 0; // Reset player ID
+        gameHasEnded = false;
+        finalBoardData = null;
+        receivedPlayerNames = false;
+        
+        // Clear the board when entering a new game
+        if (view.gameBoard != null)
+        {
+            view.gameBoard.ClearBoard();
+        }
         
         Debug.Log("Game state entered. Waiting for player names...");
     }
 
     private void _onCellClicked(int pCellIndex)
     {
-        Debug.Log($"Cell clicked: {pCellIndex}, myFixedPlayerId: {myFixedPlayerId}, currentPlayerId: {currentPlayerId}");
-        
-        // If we haven't determined our player ID yet, but it's player 1's turn, try to make a move
-        // This will work for player 1's first move
-        if (myFixedPlayerId == 0 && currentPlayerId == 1)
+        // Don't allow moves if the game has ended
+        if (gameHasEnded)
         {
-            Debug.Log("First move of the game - attempting as player 1");
-            // Track this as my move so we can identify ourselves when we get the result
-            myLastMove = pCellIndex;
-            MakeMoveRequest req = new MakeMoveRequest();
-            req.move = pCellIndex;
-            fsm.channel.SendMessage(req);
+            Debug.Log("Game has ended, no more moves allowed");
             return;
         }
         
-        // For all other moves, we need to know our player ID
-        if (myFixedPlayerId == 0)
+        // Don't allow moves until we know who we are
+        if (!receivedPlayerNames || myPlayerId == 0)
         {
-            Debug.Log("Cannot make move - player ID not determined yet");
+            Debug.Log("Cannot make move - player identity not established yet");
             return;
         }
+        
+        Debug.Log($"Cell clicked: {pCellIndex}, myPlayerId: {myPlayerId}, currentPlayerId: {currentPlayerId}");
         
         // If it's not my turn, don't allow the move
-        if (myFixedPlayerId != currentPlayerId)
+        if (myPlayerId != currentPlayerId)
         {
-            Debug.Log($"Not your turn! Your ID: {myFixedPlayerId}, Current turn: {currentPlayerId}");
+            Debug.Log($"Not your turn! Your ID: {myPlayerId}, Current turn: {currentPlayerId}");
             return;
         }
         
         // Send the move request
-        myLastMove = pCellIndex; // Track this as my move
         MakeMoveRequest request = new MakeMoveRequest();
         request.move = pCellIndex;
         fsm.channel.SendMessage(request);
@@ -115,22 +122,26 @@ public class GameState : ApplicationStateWithView<GameView>
             string player1Text = $"{player1Name} (Moves: {player1MoveCount})";
             string player2Text = $"{player2Name} (Moves: {player2MoveCount})";
             
-            // Add turn indicator
-            if (currentPlayerId == 1)
+            // Only show turn indicator if game hasn't ended
+            if (!gameHasEnded)
             {
-                player1Text = "→ " + player1Text + " ←";
-            }
-            else if (currentPlayerId == 2)
-            {
-                player2Text = "→ " + player2Text + " ←";
+                // Add turn indicator
+                if (currentPlayerId == 1)
+                {
+                    player1Text = "→ " + player1Text + " ←";
+                }
+                else if (currentPlayerId == 2)
+                {
+                    player2Text = "→ " + player2Text + " ←";
+                }
             }
             
             // Add "YOU" indicator to show which player you are
-            if (myFixedPlayerId == 1)
+            if (myPlayerId == 1)
             {
                 player1Text += " (YOU)";
             }
-            else if (myFixedPlayerId == 2)
+            else if (myPlayerId == 2)
             {
                 player2Text += " (YOU)";
             }
@@ -160,24 +171,26 @@ public class GameState : ApplicationStateWithView<GameView>
     {
         player1Name = playerNames.player1Name;
         player2Name = playerNames.player2Name;
+        receivedPlayerNames = true;
         
         Debug.Log($"Received player names - Player 1: {player1Name}, Player 2: {player2Name}");
+        Debug.Log($"My name is: {myName}");
         
-        // Try to determine which player we are by name matching
-        if (string.Equals(myName, player1Name, StringComparison.OrdinalIgnoreCase))
+        // Determine which player we are based on exact name matching
+        if (string.Equals(myName, player1Name, StringComparison.Ordinal))
         {
-            myFixedPlayerId = 1;
-            Debug.Log("I am Player 1 based on name matching");
+            myPlayerId = 1;
+            Debug.Log("I am Player 1 (exact match)");
         }
-        else if (string.Equals(myName, player2Name, StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(myName, player2Name, StringComparison.Ordinal))
         {
-            myFixedPlayerId = 2;
-            Debug.Log("I am Player 2 based on name matching");
+            myPlayerId = 2;
+            Debug.Log("I am Player 2 (exact match)");
         }
         else
         {
-            Debug.LogWarning($"Unable to determine player ID from names! myName: {myName}, player1Name: {player1Name}, player2Name: {player2Name}");
-            // We'll determine our player ID based on move results
+            Debug.LogError($"CRITICAL: Unable to determine player ID! My name '{myName}' doesn't match either '{player1Name}' or '{player2Name}'");
+            // This shouldn't happen unless there's a serious issue
         }
         
         UpdateTurnIndicator();
@@ -186,24 +199,6 @@ public class GameState : ApplicationStateWithView<GameView>
     private void handleMakeMoveResult(MakeMoveResult pMakeMoveResult)
     {
         Debug.Log("Received MakeMoveResult: " + pMakeMoveResult);
-        
-        // If we don't know our player ID yet, try to determine it
-        if (myFixedPlayerId == 0)
-        {
-            // If we made the last move (cell index matches) and we know who made this move,
-            // then that's our player ID
-            if (myLastMove >= 0 && myLastMove == findLastMovePosition(pMakeMoveResult.boardData.board))
-            {
-                myFixedPlayerId = pMakeMoveResult.whoMadeTheMove;
-                Debug.Log($"Determined I am Player {myFixedPlayerId} based on move matching");
-            }
-            else if (currentPlayerId == 1 && pMakeMoveResult.whoMadeTheMove == 1)
-            {
-                // If we're still at the beginning and player 1 just moved, we must be player 2
-                myFixedPlayerId = 2;
-                Debug.Log("Determined I am Player 2 (player 1 just moved)");
-            }
-        }
         
         // Validate board data
         if (pMakeMoveResult.boardData == null)
@@ -214,8 +209,7 @@ public class GameState : ApplicationStateWithView<GameView>
         
         // Log the board data for debugging
         Debug.Log("Board data received: " + pMakeMoveResult.boardData.ToString());
-        Debug.Log("Board array: " + (pMakeMoveResult.boardData.board != null ? 
-                                    string.Join(",", pMakeMoveResult.boardData.board) : "NULL"));
+        Debug.Log("Board array: " + string.Join(",", pMakeMoveResult.boardData.board));
         Debug.Log("Current turn from board: " + pMakeMoveResult.boardData.currentTurn);
         
         // Update the board visual representation
@@ -226,8 +220,7 @@ public class GameState : ApplicationStateWithView<GameView>
         }
         else
         {
-            Debug.LogError("GameView or GameBoard is null! view: " + (view != null) + 
-                        ", gameBoard: " + (view != null && view.gameBoard != null));
+            Debug.LogError("GameView or GameBoard is null!");
         }
         
         // Update turn tracking
@@ -235,8 +228,7 @@ public class GameState : ApplicationStateWithView<GameView>
         currentPlayerId = pMakeMoveResult.boardData.currentTurn;
         
         Debug.Log($"Turn switched from {oldTurn} to {currentPlayerId}");
-        Debug.Log($"Move result received. Who made move: {pMakeMoveResult.whoMadeTheMove}, " +
-                "Next turn: {currentPlayerId}");
+        Debug.Log($"Move result received. Who made move: {pMakeMoveResult.whoMadeTheMove}, Next turn: {currentPlayerId}");
         
         // Increment move counter for the player who moved
         if (pMakeMoveResult.whoMadeTheMove == 1)
@@ -250,42 +242,19 @@ public class GameState : ApplicationStateWithView<GameView>
         
         UpdateTurnIndicator();
     }
-    
-    // Helper method to find the position of the last move
-    private int findLastMovePosition(int[] board)
-    {
-        // Count how many non-zero cells to determine which move number we're on
-        int moveCount = 0;
-        for (int i = 0; i < board.Length; i++)
-        {
-            if (board[i] != 0) moveCount++;
-        }
-        
-        // For the first move
-        if (moveCount == 1)
-        {
-            // Find the position of the 1 (player 1's first move)
-            for (int i = 0; i < board.Length; i++)
-            {
-                if (board[i] == 1) return i;
-            }
-        }
-        // For the second move
-        else if (moveCount == 2)
-        {
-            // Find the position of the 2 (player 2's first move)
-            for (int i = 0; i < board.Length; i++)
-            {
-                if (board[i] == 2) return i;
-            }
-        }
-        // For later moves, we'd need to compare with the previous board state
-        // For now, return -1 which won't match myLastMove
-        return -1;
-    }
 
     private void handleGameFinished(GameFinished gameFinished)
     {
+        gameHasEnded = true;
+        finalBoardData = gameFinished.boardData;
+        
+        // Make sure the final board state is displayed
+        if (finalBoardData != null && view != null && view.gameBoard != null)
+        {
+            view.gameBoard.SetBoardData(finalBoardData);
+            Debug.Log($"Final board state set in GameState: {string.Join(",", finalBoardData.board)}");
+        }
+        
         string resultMessage;
         
         if (gameFinished.IsDraw)
@@ -299,17 +268,31 @@ public class GameState : ApplicationStateWithView<GameView>
             Debug.Log("Game finished! Result: " + resultMessage);
         }
         
-        // Switch to Results state
+        // Update the turn indicator to show game has ended
+        UpdateTurnIndicator();
+        
+        // IMPORTANT: Initialize the Results state BEFORE changing to it
         Results resultsState = FindResultsState();
         if (resultsState != null)
         {
+            // Pass the board data to Results state before the transition
+            Debug.Log($"Passing board data to Results state: {string.Join(",", gameFinished.boardData.board)}");
             resultsState.InitializeEnd(gameFinished.boardData, gameFinished.YesDadImWinnin, gameFinished.IsDraw);
-            fsm.ChangeState<Results>();
+            
+            // Small delay to ensure the data is set before state change
+            StartCoroutine(DelayedStateChange());
         }
         else
         {
             Debug.LogError("Results state not found!");
         }
+    }
+    
+    private System.Collections.IEnumerator DelayedStateChange()
+    {
+        // Wait one frame to ensure InitializeEnd has been processed
+        yield return null;
+        fsm.ChangeState<Results>();
     }
     
     private Results FindResultsState()

@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 
-namespace shared {
+namespace shared
+{
 
     /**
      * TcpMessageChannel is sort of a facade around a TcpClient, Packets & the StreamUtil class.
@@ -21,7 +22,7 @@ namespace shared {
         private TcpClient _client = null;                               //the underlying client connection
         private NetworkStream _stream = null;                           //the client's cached stream
         private IPEndPoint _remoteEndPoint = null;                      //cached endpoint info so we can still access it, even if the connection closes
-        
+
         //stores all errors that occurred (can be used for debug info to get an idea of where and why the channel failed)
         private List<Exception> _errors = new List<Exception>();
 
@@ -35,7 +36,7 @@ namespace shared {
          */
         public TcpMessageChannel(TcpClient pTcpClient)
         {
-            Log.LogInfo("TCPMessageChannel created around "+pTcpClient, this, ConsoleColor.Blue);
+            Log.LogInfo("TCPMessageChannel created around " + pTcpClient, this, ConsoleColor.Blue);
 
             _client = pTcpClient;
             _stream = _client.GetStream();
@@ -47,7 +48,7 @@ namespace shared {
          * This is usually used on the client side, where you call Connect (..,..) on the TcpMessageChannel
          * after creating it. 
          */
-        public TcpMessageChannel ()
+        public TcpMessageChannel()
         {
             Log.LogInfo("TCPMessageChannel created (not connected).", this, ConsoleColor.Blue);
         }
@@ -57,7 +58,7 @@ namespace shared {
          * 
          * @return bool indicating connection status
          */
-        public bool Connect (string pServerIP, int pServerPort)
+        public bool Connect(string pServerIP, int pServerPort)
         {
             Log.LogInfo("Connecting...", this, ConsoleColor.Blue);
 
@@ -89,6 +90,13 @@ namespace shared {
                 return;
             }
 
+            // Check if we're still connected before attempting to send
+            if (!Connected)
+            {
+                Log.LogInfo("Channel is not connected, cannot send.", this, ConsoleColor.Red);
+                return;
+            }
+
             //everything we log from now to the end of this method should be cyan
             Log.PushForegroundColor(ConsoleColor.Cyan);
             Log.LogInfo(pMessage, this);
@@ -105,6 +113,18 @@ namespace shared {
 
                 StreamUtil.Write(_stream, _lastSerializedBytes);
             }
+            catch (System.IO.IOException ioEx)
+            {
+                // Handle IOException specifically - this often means the client disconnected
+                Log.LogInfo($"Client disconnected during send: {ioEx.Message}", this, ConsoleColor.Yellow);
+                addError(ioEx);
+            }
+            catch (SocketException socketEx)
+            {
+                // Handle SocketException specifically
+                Log.LogInfo($"Socket error during send: {socketEx.Message}", this, ConsoleColor.Yellow);
+                addError(socketEx);
+            }
             catch (Exception e)
             {
                 addError(e);
@@ -118,8 +138,16 @@ namespace shared {
          */
         public bool HasMessage()
         {
-            //we use an update StreamUtil.Available check instead of just Available > 0
-            return Connected && StreamUtil.Available(_client);
+            try
+            {
+                //we use an update StreamUtil.Available check instead of just Available > 0
+                return Connected && StreamUtil.Available(_client);
+            }
+            catch
+            {
+                // If we get an exception checking for messages, the connection is likely dead
+                return false;
+            }
         }
 
         /**
@@ -138,7 +166,7 @@ namespace shared {
             {
                 Log.PushForegroundColor(ConsoleColor.Yellow);
                 Log.LogInfo("Receiving message...", this);
-                
+
                 byte[] inBytes = StreamUtil.Read(_stream);
                 Packet inPacket = new Packet(inBytes);
                 ASerializable inObject = inPacket.ReadObject();
@@ -146,6 +174,13 @@ namespace shared {
                 Log.PopForegroundColor();
 
                 return inObject;
+            }
+            catch (System.IO.IOException ioEx)
+            {
+                // Handle IOException specifically - this often means the client disconnected
+                Log.LogInfo($"Client disconnected during receive: {ioEx.Message}", this, ConsoleColor.Yellow);
+                addError(ioEx);
+                return null;
             }
             catch (Exception e)
             {
@@ -157,10 +192,18 @@ namespace shared {
         /**
          * Similar to TcpClient connected, but also returns false if underlying client is null, or errors were detected.
          */
-        public bool Connected 
+        public bool Connected
         {
-            get {
-                return !HasErrors() && _client != null && _client.Connected;
+            get
+            {
+                try
+                {
+                    return !HasErrors() && _client != null && _client.Connected;
+                }
+                catch
+                {
+                    return false;
+                }
             }
         }
 
@@ -176,22 +219,38 @@ namespace shared {
 
         private void addError(Exception pError)
         {
-            Log.LogInfo("Error added:"+pError, this, ConsoleColor.Red);
+            // Only log as error if it's not a normal disconnect
+            if (pError is System.IO.IOException || pError is SocketException)
+            {
+                Log.LogInfo("Connection closed: " + pError.Message, this, ConsoleColor.Yellow);
+            }
+            else
+            {
+                Log.LogInfo("Error added: " + pError, this, ConsoleColor.Red);
+            }
+
             _errors.Add(pError);
             Close();
         }
 
         public IPEndPoint GetRemoteEndPoint() { return _remoteEndPoint; }
 
-        public void Close ()
+        public void Close()
         {
             try
             {
-                _client.Close();
-            } catch {
+                _stream?.Close();
             }
+            catch { }
+
+            try
+            {
+                _client?.Close();
+            }
+            catch { }
             finally
             {
+                _stream = null;
                 _client = null;
             }
         }

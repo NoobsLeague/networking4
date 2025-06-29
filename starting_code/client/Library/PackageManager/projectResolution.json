@@ -1,18 +1,18 @@
 {
   "context": {
-    "projectPath": "E:/Unity/Networking/A4_flic_flac_flo/starting_code/client/Packages",
+    "projectPath": "E:/Unity/Networking/networking4/starting_code/client/Packages",
     "unityVersion": "6000.0.42f1"
   },
   "inputs": [
-    "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Packages\\manifest.json",
-    "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Packages\\packages-lock.json",
+    "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Packages\\manifest.json",
+    "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Packages\\packages-lock.json",
     "E:\\Unity\\6000.0.42f1\\Editor\\Data\\Resources\\PackageManager\\BuiltInPackages\\BuiltInPackagesCombined.sha1"
   ],
   "outputs": {
     "com.unity.ide.rider@3.0.34": {
       "name": "com.unity.ide.rider",
       "displayName": "JetBrains Rider Editor",
-      "resolvedPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Library\\PackageCache\\com.unity.ide.rider@ecbf706690e5",
+      "resolvedPath": "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Library\\PackageCache\\com.unity.ide.rider@ecbf706690e5",
       "fingerprint": "ecbf706690e5ce42dc165ddd8e5754acda3dc6b9",
       "editorCompatibility": "2019.4.6f1",
       "version": "3.0.34",
@@ -22,7 +22,7 @@
     "com.unity.ide.visualstudio@2.0.22": {
       "name": "com.unity.ide.visualstudio",
       "displayName": "Visual Studio Editor",
-      "resolvedPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Library\\PackageCache\\com.unity.ide.visualstudio@8140e851d83e",
+      "resolvedPath": "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Library\\PackageCache\\com.unity.ide.visualstudio@8140e851d83e",
       "fingerprint": "8140e851d83e922ca2021b04a89519de94ebe38c",
       "editorCompatibility": "2019.4.25f1",
       "version": "2.0.22",
@@ -32,7 +32,7 @@
     "com.unity.ugui@2.0.0": {
       "name": "com.unity.ugui",
       "displayName": "Unity UI",
-      "resolvedPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Library\\PackageCache\\com.unity.ugui@9496653a3df6",
+      "resolvedPath": "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Library\\PackageCache\\com.unity.ugui@9496653a3df6",
       "fingerprint": "9496653a3df6648f8e3a165cac05bba08c614150",
       "editorCompatibility": "2019.2.0a1",
       "version": "2.0.0",
@@ -314,7 +314,7 @@
     "com.unity.test-framework@1.4.6": {
       "name": "com.unity.test-framework",
       "displayName": "Test Framework",
-      "resolvedPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Library\\PackageCache\\com.unity.test-framework@5ac417e07314",
+      "resolvedPath": "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Library\\PackageCache\\com.unity.test-framework@5ac417e07314",
       "fingerprint": "5ac417e07314c8f6afba8109738c32b82d391e68",
       "editorCompatibility": "2019.4.1f1",
       "version": "1.4.6",
@@ -324,7 +324,7 @@
     "com.unity.ext.nunit@2.0.5": {
       "name": "com.unity.ext.nunit",
       "displayName": "Custom NUnit",
-      "resolvedPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\client\\Library\\PackageCache\\com.unity.ext.nunit@60ef35ffd3cd",
+      "resolvedPath": "E:\\Unity\\Networking\\networking4\\starting_code\\client\\Library\\PackageCache\\com.unity.ext.nunit@60ef35ffd3cd",
       "fingerprint": "60ef35ffd3cd5e2f5c8887a4a4ca6148854cd092",
       "editorCompatibility": "2019.4.0a1",
       "version": "2.0.5",

@@ -136,17 +136,31 @@ namespace server
 
 		abstract protected void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender);
 
-		/**
-		 * Sends a message to all members in the room.
-		 */
-		protected void sendToAll(ASerializable pMessage)
-		{
-			foreach (TcpMessageChannel member in _members)
-			{
-				member.SendMessage(pMessage);
-			}
-		}
 
-	}
+
+        protected void sendToAll(ASerializable pMessage)
+        {
+            // Create a copy of the members list to avoid modification during iteration
+            List<TcpMessageChannel> membersCopy = new List<TcpMessageChannel>(_members);
+
+            foreach (TcpMessageChannel member in membersCopy)
+            {
+                // Only send to connected members
+                if (member.Connected)
+                {
+                    try
+                    {
+                        member.SendMessage(pMessage);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.LogInfo($"Failed to send message to member: {ex.Message}", this, ConsoleColor.Yellow);
+                        // The member will be cleaned up in the next Update cycle
+                    }
+                }
+            }
+        }
+
+    }
 }
 

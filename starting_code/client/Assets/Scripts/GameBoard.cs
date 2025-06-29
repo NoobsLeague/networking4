@@ -5,8 +5,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using shared;
 
-
-
 /**
  * Simple checkerbased gameboard that could be reused for other 1 piece based 2 player games.
  * (For multi piece based 2 player games, you'll probably have to make some edits, 
@@ -24,6 +22,9 @@ public class GameBoard : MonoBehaviour, IPointerClickHandler
 
     //called when we click on a cell
     public event Action<int> OnCellClicked = delegate { };
+    
+    // Store the current board state to prevent unwanted clearing
+    private TicTacToeBoardData _currentBoardData;
 
     private void Awake()
     {
@@ -39,6 +40,16 @@ public class GameBoard : MonoBehaviour, IPointerClickHandler
             Debug.Log($"Sprite {i}: {(_cellStateSprites[i] != null ? _cellStateSprites[i].name : "NULL")}");
         }
     }
+    
+    private void OnEnable()
+    {
+        // When the board becomes active, restore the last known state if available
+        if (_currentBoardData != null)
+        {
+            Debug.Log("GameBoard OnEnable: Restoring board state");
+            SetBoardData(_currentBoardData);
+        }
+    }
 
     /**
      * Updates the whole board view to reflect the given board data.
@@ -51,7 +62,11 @@ public class GameBoard : MonoBehaviour, IPointerClickHandler
             return;
         }
 
+        Debug.Log($"GameBoard.SetBoardData called from: {UnityEngine.StackTraceUtility.ExtractStackTrace()}");
         Debug.Log("Setting board data: " + pBoardData.ToString());
+
+        // Store the board data
+        _currentBoardData = pBoardData;
 
         //pass the whole board to our view
         int[] boardData = pBoardData.board;
@@ -93,6 +108,16 @@ public class GameBoard : MonoBehaviour, IPointerClickHandler
             Debug.Log($"Set cell {i} to state {cellState} with sprite {_cellStateSprites[cellState].name}");
         }
     }
+    
+    /**
+     * Clear the board (only call this when starting a new game)
+     */
+    public void ClearBoard()
+    {
+        Debug.Log("GameBoard.ClearBoard called");
+        _currentBoardData = new TicTacToeBoardData();
+        SetBoardData(_currentBoardData);
+    }
 
     /**
      * Automatically called by the Unity UI system since we have implemented the IPointerClickHandler interface
@@ -105,5 +130,4 @@ public class GameBoard : MonoBehaviour, IPointerClickHandler
         //and if we actually clicked on a cell, trigger our event
         if (clickedCellIndex > -1) OnCellClicked(clickedCellIndex);
     }
-
 }

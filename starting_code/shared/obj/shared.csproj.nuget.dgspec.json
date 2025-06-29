@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\shared\\shared.csproj": {}
+    "E:\\Unity\\Networking\\networking4\\starting_code\\shared\\shared.csproj": {}
   },
   "projects": {
-    "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\shared\\shared.csproj": {
+    "E:\\Unity\\Networking\\networking4\\starting_code\\shared\\shared.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\shared\\shared.csproj",
+        "projectUniqueName": "E:\\Unity\\Networking\\networking4\\starting_code\\shared\\shared.csproj",
         "projectName": "shared",
-        "projectPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\shared\\shared.csproj",
+        "projectPath": "E:\\Unity\\Networking\\networking4\\starting_code\\shared\\shared.csproj",
         "packagesPath": "C:\\Users\\LEGION\\.nuget\\packages\\",
-        "outputPath": "E:\\Unity\\Networking\\A4_flic_flac_flo\\starting_code\\shared\\obj\\",
+        "outputPath": "E:\\Unity\\Networking\\networking4\\starting_code\\shared\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

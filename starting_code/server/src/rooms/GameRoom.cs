@@ -20,7 +20,7 @@ namespace server
         // Wraps the board to play on...
         private TicTacToeBoard _board;
 
-        // To keep track of who is in a game
+        // To keep track of who is in a game - IMPORTANT: Use the exact same players that were passed in
         private readonly List<TcpMessageChannel> _players = new List<TcpMessageChannel>();
 
         public GameRoom(TCPGameServer pOwner, int id) : base(pOwner)
@@ -29,32 +29,59 @@ namespace server
             RoomId = id;
         }
 
+        // Method to check if a specific player is in this game
+        public bool HasPlayer(TcpMessageChannel player)
+        {
+            return _players.Contains(player);
+        }
+
         public void StartGame(TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
         {
+            if (pPlayer1 == null || pPlayer2 == null)
+            {
+                Log.LogInfo("ERROR: Cannot start game with null players!", this, ConsoleColor.Red);
+                return;
+            }
+
+            if (pPlayer1 == pPlayer2)
+            {
+                Log.LogInfo("ERROR: Cannot start game with the same player twice!", this, ConsoleColor.Red);
+                return;
+            }
+
             IsGameInPlay = true;
             // Initialize the board here so it can be repeated (not only 1 game)
             _board = new TicTacToeBoard();
             // Clear to make sure
             _players.Clear();
-            // Add players
+            // Add players in the EXACT ORDER they were passed in
             _players.Add(pPlayer1);
             _players.Add(pPlayer2);
+
+            // Get player names - use the EXACT players we stored
+            var p1Name = _server.GetPlayerInfo(pPlayer1).name;
+            var p2Name = _server.GetPlayerInfo(pPlayer2).name;
+
+            Log.LogInfo($"Starting game between {p1Name} (Player 1) and {p2Name} (Player 2)", this);
+            Log.LogInfo($"Player 1 channel: {pPlayer1.GetRemoteEndPoint()}", this);
+            Log.LogInfo($"Player 2 channel: {pPlayer2.GetRemoteEndPoint()}", this);
+
+            // Add them to the room AFTER storing them in _players to maintain order
             addMember(pPlayer1);
             addMember(pPlayer2);
 
-            // Get player names
-            var p1 = _server.GetPlayerInfo(pPlayer1).name;
-            var p2 = _server.GetPlayerInfo(pPlayer2).name;
+            // Verify the room membership
+            Log.LogInfo($"GameRoom #{RoomId} now has {memberCount} members", this);
 
-            Log.LogInfo($"Starting game between {p1} and {p2}", this);
-
-            // Send player names to both clients
-            sendToAll(new PlayerNames { player1Name = p1, player2Name = p2 });
+            // Send player names to both clients - CRITICAL: Use the stored names
+            Log.LogInfo($"Sending PlayerNames: Player1={p1Name}, Player2={p2Name}", this);
+            sendToAll(new PlayerNames { player1Name = p1Name, player2Name = p2Name });
 
             // Send initial board state with player 1's turn
             MakeMoveResult initialState = new MakeMoveResult();
             initialState.whoMadeTheMove = 0; // No move made yet
             initialState.boardData = _board.GetBoardData();
+            Log.LogInfo($"Sending initial board state", this);
             sendToAll(initialState);
         }
 
@@ -62,10 +89,20 @@ namespace server
         {
             base.addMember(pMember);
 
+            // CRITICAL: Only add to room members if they're one of the game players
+            if (!_players.Contains(pMember))
+            {
+                Log.LogInfo($"ERROR: Trying to add {_server.GetPlayerInfo(pMember).name} to GameRoom but they're not a game player!", this, ConsoleColor.Red);
+                removeMember(pMember); // Remove them immediately
+                return;
+            }
+
             // Notify client they have joined a game room 
             RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
             roomJoinedEvent.room = RoomJoinedEvent.Room.GAME_ROOM;
             pMember.SendMessage(roomJoinedEvent);
+
+            Log.LogInfo($"Added {_server.GetPlayerInfo(pMember).name} to GameRoom #{RoomId}", this);
         }
 
         public override void Update()
@@ -87,7 +124,7 @@ namespace server
                     // If we still have one player connected, they win
                     if (newMemberCount == 1)
                     {
-                        // Get the remaining player
+                        // Get the remaining player from our _players list
                         TcpMessageChannel remainingPlayer = null;
                         foreach (var player in _players)
                         {
@@ -120,7 +157,7 @@ namespace server
             }
             else if (pMessage is ConcedeRequest)
             {
-                // Just send the win to whoever not send the message
+                // Find the winner from our _players list
                 var winner = _players[0] == pSender ? _players[1] : _players[0];
                 gameFinished(winner);
             }
@@ -142,11 +179,12 @@ namespace server
 
         private void handleMakeMoveRequest(MakeMoveRequest pMessage, TcpMessageChannel pSender)
         {
-            // Get the player index (0 or 1)
+            // Get the player index (0 or 1) from our stored _players list
             int playerIndex = _players.IndexOf(pSender);
             if (playerIndex == -1)
             {
-                Log.LogInfo("Received move from player not in this game!", this);
+                Log.LogInfo($"Received move from player not in this game! Sender: {pSender.GetRemoteEndPoint()}", this);
+                Log.LogInfo($"Expected players: {_players[0]?.GetRemoteEndPoint()} and {_players[1]?.GetRemoteEndPoint()}", this);
                 return;
             }
 
@@ -156,7 +194,8 @@ namespace server
             // Check if it's this player's turn
             TicTacToeBoardData boardData = _board.GetBoardData();
             Log.LogInfo($"Current board state: {boardData.ToString()}", this);
-            Log.LogInfo($"Current turn: {boardData.currentTurn}, Player making move: {playerID}", this);
+            Log.LogInfo($"Current turn: {boardData.currentTurn}, Player making move: {playerID} (Index: {playerIndex})", this);
+            Log.LogInfo($"Player {playerID} name: {_server.GetPlayerInfo(pSender).name}", this);
 
             if (boardData.currentTurn != playerID)
             {
@@ -196,7 +235,7 @@ namespace server
                     }
                     else // Player 1 or 2 won
                     {
-                        // Get the winner's channel
+                        // Get the winner's channel from our _players list
                         TcpMessageChannel winner = _players[winnerId - 1];
                         gameFinished(winner);
                     }
@@ -211,6 +250,7 @@ namespace server
 
         private void gameFinished(TcpMessageChannel winner)
         {
+            // Find the loser from our _players list
             var loser = _players[0] == winner ? _players[1] : _players[0];
             var data = _board.GetBoardData();
 
@@ -236,7 +276,7 @@ namespace server
 
             Log.LogInfo("Game finished in a draw!", this);
 
-            // Send draw result to both players
+            // Send draw result to both players from our _players list
             foreach (var player in _players)
             {
                 if (player.Connected)

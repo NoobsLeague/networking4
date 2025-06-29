@@ -47,10 +47,17 @@ public class LoginState : ApplicationStateWithView<LoginView>
             return;
         }
 
-        // Save username to PlayerPrefs so it can be accessed by other states
+        // Debug: Log what we're about to save
+        Debug.Log($"[LoginState] About to store username: '{view.userName}'");
+
+        // FIXED: Store username in FSM instead of PlayerPrefs to avoid sharing between clients
+        fsm.SetUsername(view.userName);
+        
+        // Also save to PlayerPrefs as backup (but don't rely on it for retrieval)
         PlayerPrefs.SetString("Username", view.userName);
         PlayerPrefs.Save();
-        Debug.Log("Saved username to PlayerPrefs: " + view.userName);
+        
+        Debug.Log($"[LoginState] Stored username in FSM: '{view.userName}'");
 
         //connect to the server and on success try to join the lobby
         if (fsm.channel.Connect(_serverIP, _serverPort))
@@ -105,5 +112,4 @@ public class LoginState : ApplicationStateWithView<LoginView>
             fsm.ChangeState<LobbyState>();
         } 
     }
-
 }

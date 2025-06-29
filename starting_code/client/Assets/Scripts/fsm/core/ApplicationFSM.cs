@@ -44,6 +44,9 @@ public class ApplicationFSM : MonoBehaviour
 	//single reference to a TcpMessageChannel to send/receive messages over throughout the life time of the application.
 	public TcpMessageChannel channel { get; private set; }
 
+	// Store username per client instance (fixes PlayerPrefs sharing issue)
+	private string _username = "Unknown";
+
 	protected void Awake()
     {
 		//make sure all Console.WriteLines end up in the Unity console as well.
@@ -122,5 +125,16 @@ public class ApplicationFSM : MonoBehaviour
 		channel.Close();
 	}
 
+	// Username storage methods to fix PlayerPrefs sharing issue
+	public void SetUsername(string username)
+	{
+		_username = username;
+		Debug.Log($"[ApplicationFSM] Username set to: '{_username}'");
+	}
 
+	public string GetUsername()
+	{
+		Debug.Log($"[ApplicationFSM] Returning username: '{_username}'");
+		return _username;
+	}
 }

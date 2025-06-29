@@ -7,12 +7,14 @@ namespace server
      */
     abstract class SimpleRoom : Room
     {
-		protected SimpleRoom(TCPGameServer pServer) : base(pServer) { }
+        protected SimpleRoom(TCPGameServer pServer) : base(pServer) { }
 
-        public void AddMember (TcpMessageChannel pChannel)
+        public void AddMember(TcpMessageChannel pChannel)
         {
             addMember(pChannel);
         }
 
-	}
+        // The HasMember and ForceRemoveMember methods are already available from the base Room class
+        // No need to override them here since they're already public in the base class
+    }
 }

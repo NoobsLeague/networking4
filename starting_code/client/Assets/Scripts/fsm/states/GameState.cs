@@ -37,9 +37,11 @@ public class GameState : ApplicationStateWithView<GameView>
     {
         base.EnterState();
         
-        // Store our username (from the login screen)
-        myName = PlayerPrefs.GetString("Username", "Unknown");
-        Debug.Log("My username is: " + myName);
+        // FIXED: Get username from FSM instead of PlayerPrefs
+        myName = fsm.GetUsername();
+        
+        Debug.Log($"[GameState] My username from FSM: '{myName}'");
+        Debug.Log($"[GameState] PlayerPrefs username (for comparison): '{PlayerPrefs.GetString("Username", "Unknown")}'");
         
         view.gameBoard.OnCellClicked += _onCellClicked;
         view.QuitGameButton.onClick.AddListener(QuitGame);
@@ -59,7 +61,7 @@ public class GameState : ApplicationStateWithView<GameView>
             view.gameBoard.ClearBoard();
         }
         
-        Debug.Log("Game state entered. Waiting for player names...");
+        Debug.Log($"[GameState] Game state entered. My name: '{myName}'. Waiting for player names...");
     }
 
     private void _onCellClicked(int pCellIndex)
@@ -153,17 +155,27 @@ public class GameState : ApplicationStateWithView<GameView>
 
     protected override void handleNetworkMessage(ASerializable pMessage)
     {
+        // Add debugging to see what messages this client is receiving
+        Debug.Log($"[GameState] {myName} received message: {pMessage.GetType().Name}");
+        
         if (pMessage is MakeMoveResult makeMoveResult)
         {
+            Debug.Log($"[GameState] {myName} received MakeMoveResult");
             handleMakeMoveResult(makeMoveResult);
         }
         else if (pMessage is PlayerNames playerNames)
         {
+            Debug.Log($"[GameState] {myName} received PlayerNames: P1={playerNames.player1Name}, P2={playerNames.player2Name}");
             handlePlayerNames(playerNames);
         }
         else if (pMessage is GameFinished gameFinished)
         {
+            Debug.Log($"[GameState] {myName} received GameFinished");
             handleGameFinished(gameFinished);
+        }
+        else
+        {
+            Debug.Log($"[GameState] {myName} received unknown message: {pMessage.GetType().Name}");
         }
     }
 
@@ -173,24 +185,36 @@ public class GameState : ApplicationStateWithView<GameView>
         player2Name = playerNames.player2Name;
         receivedPlayerNames = true;
         
-        Debug.Log($"Received player names - Player 1: {player1Name}, Player 2: {player2Name}");
-        Debug.Log($"My name is: {myName}");
+        Debug.Log($"[GameState] Received player names - Player 1: {player1Name}, Player 2: {player2Name}");
+        Debug.Log($"[GameState] My name is: '{myName}'");
+        Debug.Log($"[GameState] My name length: {myName.Length}");
+        Debug.Log($"[GameState] Player1 name length: {player1Name.Length}");
+        Debug.Log($"[GameState] Player2 name length: {player2Name.Length}");
         
         // Determine which player we are based on exact name matching
         if (string.Equals(myName, player1Name, StringComparison.Ordinal))
         {
             myPlayerId = 1;
-            Debug.Log("I am Player 1 (exact match)");
+            Debug.Log($"[GameState] I am Player 1 (exact match)");
         }
         else if (string.Equals(myName, player2Name, StringComparison.Ordinal))
         {
             myPlayerId = 2;
-            Debug.Log("I am Player 2 (exact match)");
+            Debug.Log($"[GameState] I am Player 2 (exact match)");
         }
         else
         {
-            Debug.LogError($"CRITICAL: Unable to determine player ID! My name '{myName}' doesn't match either '{player1Name}' or '{player2Name}'");
-            // This shouldn't happen unless there's a serious issue
+            Debug.LogError($"[GameState] CRITICAL: Unable to determine player ID!");
+            Debug.LogError($"[GameState] My name: '{myName}' (length: {myName.Length})");
+            Debug.LogError($"[GameState] Player1: '{player1Name}' (length: {player1Name.Length})");
+            Debug.LogError($"[GameState] Player2: '{player2Name}' (length: {player2Name.Length})");
+            Debug.LogError($"[GameState] This suggests I'm receiving messages for a game I'm not in!");
+            
+            // Check if this client should even be receiving this message
+            Debug.LogError($"[GameState] FSM Username: '{fsm.GetUsername()}'");
+            Debug.LogError($"[GameState] PlayerPrefs Username: '{PlayerPrefs.GetString("Username", "Unknown")}'");
+            
+            return; // Don't proceed if we can't identify ourselves
         }
         
         UpdateTurnIndicator();
@@ -198,7 +222,7 @@ public class GameState : ApplicationStateWithView<GameView>
 
     private void handleMakeMoveResult(MakeMoveResult pMakeMoveResult)
     {
-        Debug.Log("Received MakeMoveResult: " + pMakeMoveResult);
+        Debug.Log($"[GameState] {myName} received MakeMoveResult: " + pMakeMoveResult);
         
         // Validate board data
         if (pMakeMoveResult.boardData == null)
